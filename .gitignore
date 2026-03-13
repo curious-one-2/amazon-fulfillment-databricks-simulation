@@ -1,0 +1,21 @@
+# Ignore python byte code and cache
+__pycache__/
+*.py[cod]
+
+# Ignore Databricks temporary files
+.databricks/
+.bundle/
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
+
+# Ignore local environment files (where secrets might accidentally live)
+.env
+.venv
+env/
+venv/
+
+# Ignore scratchpad/experiment notebooks 
+# (Optional: name your messy files with 'temp_' to keep them out of Git)
+temp_*
