@@ -35,6 +35,91 @@ To mirror real-world variability, I developed a custom data generator that:
 - Simulates robot telemetry (battery life, weight capacity) and employee availability constraints.
 - Generates raw event streams in CSV format stored in cloud volumes.
 
+
+# Data Modeling Strategy
+
+Layered Architecture
+- Bronze: Ingests raw CSV data from Cloud Volumes using Databricks Auto Loader. These tables act as the "Source of Truth" with minimal transformation.
+- Silver: Applies schema enforcement and data cleaning.
+    - SCD Type 1: Used for products and addresses where only the latest state is required.
+    - SCD Type 2 / Versioning: Used for robots and bins to track status transitions (e.g., Picking to Idle) over time.
+- Gold (Star Schema):
+    - fact_order_lifecycle: A cumulative fact table that flattens the order journey. It allows for high-speed "Time-to-Ship" analysis.
+    - fact_daily_order_volume: An aggregated periodic snapshot. It joins five Silver tables to provide a high-level view of regional throughput without the overhead of scanning millions of individual order rows.
+
+The Markdown:
+```mermaid
+    graph LR
+    subgraph Bronze [Raw / Ingestion]
+        B1[addresses]
+        B2[bin_events]
+        B3[customers]
+        B4[employee]
+        B5[inventory]
+        B6[order_items]
+        B7[orders]
+        B8[products]
+        B9[robot_events]
+        B10[shelves_events]
+    end
+
+    subgraph Silver [Cleaned / Filtered]
+        S1[Address_silver]
+        S2[bins]
+        S3[customer_silver]
+        S4[employee_silver]
+        S5[inventory_silver]
+        S6[order_items_silver]
+        S7[orders_silver]
+        S8[Products_silver]
+        S9[robots]
+        S10[shelves]
+    end
+
+    subgraph Gold [Curated / Analytics]
+        G1[dim_date]
+        G2[dim_geography]
+        G3[fact_daily_order_volume]
+        G4[fact_order_lifecycle]
+    end
+
+    Bronze --> Silver
+    S1 --> G2
+    S7 --> G4
+    S7 & S6 & S3 & S1 & G2 --> G3
+
+erDiagram
+    DIM_DATE {
+        int date_key PK
+        date full_date
+        int year
+        int month
+    }
+    DIM_GEOGRAPHY {
+        long geo_key PK
+        string city
+        string province
+    }
+    FACT_ORDER_LIFECYCLE {
+        string order_id PK
+        int date_key FK
+        timestamp date_initial
+        timestamp date_shipped
+        string current_status
+    }
+    FACT_DAILY_ORDER_VOLUME {
+        int date_key FK
+        long geo_key FK
+        int total_orders
+        int total_items
+    }
+
+    DIM_DATE ||--o{ FACT_ORDER_LIFECYCLE : "tracks"
+    DIM_DATE ||--o{ FACT_DAILY_ORDER_VOLUME : "aggregates"
+    DIM_GEOGRAPHY ||--o{ FACT_DAILY_ORDER_VOLUME : "locates"
+
+```
+
 # Orchestration & Monitoring
 The image of the Job:
 
