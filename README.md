@@ -28,6 +28,22 @@ Inspired by a tour of an Amazon Fulfillment Center, this project simulates the h
 - Periodic Snapshot Fact: Created a daily volume table aggregated by Geography and Time to monitor regional throughput.
 - Optimization: Implemented Liquid Clustering on order_id and date_key to ensure high-performance joins and fast "Change Data Feed" (CDF) reads.
 
+```mermaid
+graph LR
+    subgraph Bronze_Layer [Bronze: Raw Ingestion]
+        B[Raw CSVs] -->|Auto Loader| BT[Bronze Tables]
+    end
+
+    subgraph Silver_Layer [Silver: Refined]
+        BT -->|SCD Type 1/2| S[Silver Tables]
+    end
+
+    subgraph Gold_Layer [Gold: Analytics]
+        S -->|Aggregations| G1[fact_daily_order_volume]
+        S -->|Cumulative Join| G2[fact_order_lifecycle]
+    end
+
+```
 
 # The Data Challenge (Simulation)
 To mirror real-world variability, I developed a custom data generator that:
@@ -47,7 +63,7 @@ Layered Architecture
     - fact_order_lifecycle: A cumulative fact table that flattens the order journey. It allows for high-speed "Time-to-Ship" analysis.
     - fact_daily_order_volume: An aggregated periodic snapshot. It joins five Silver tables to provide a high-level view of regional throughput without the overhead of scanning millions of individual order rows.
 
-The Markdown:
+
 ```mermaid
     graph LR
     subgraph Bronze [Raw / Ingestion]
@@ -88,6 +104,9 @@ The Markdown:
     S7 --> G4
     S7 & S6 & S3 & S1 & G2 --> G3
 
+```
+
+```mermaid
 erDiagram
     DIM_DATE {
         int date_key PK
